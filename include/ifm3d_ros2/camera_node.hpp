@@ -30,9 +30,8 @@
 #include <ifm3d_ros2/srv/softon.hpp>
 #include <ifm3d_ros2/srv/softoff.hpp>
 
-#include <ifm3d/camera/camera_base.h>
+#include <ifm3d/device/device.h>
 #include <ifm3d/fg.h>
-#include <ifm3d/stlimage.h>
 
 using TC_RETVAL = rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn;
 
@@ -242,9 +241,8 @@ private:
   SoftoffServer soft_off_srv_{};
   SoftonServer soft_on_srv_{};
 
-  ifm3d::CameraBase::Ptr cam_{};
+  ifm3d::Device::Ptr cam_{};
   ifm3d::FrameGrabber::Ptr fg_{};
-  ifm3d::StlImageBuffer::Ptr im_{};
 
   ImagePublisher conf_pub_{};
   ImagePublisher distance_pub_{};

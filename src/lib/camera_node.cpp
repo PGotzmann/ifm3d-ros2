@@ -227,21 +227,21 @@ CameraNode::CameraNode(const std::string& node_name, const rclcpp::NodeOptions& 
   //
   // Set up our service servers
   //
-//  this->dump_srv_ =
-//      this->create_service<DumpService>("~/Dump", std::bind(&ifm3d_ros2::CameraNode::Dump, this, std::placeholders::_1,
-//                                                            std::placeholders::_2, std::placeholders::_3));
-//
-//  this->config_srv_ = this->create_service<ConfigService>(
-//      "~/Config", std::bind(&ifm3d_ros2::CameraNode::Config, this, std::placeholders::_1, std::placeholders::_2,
-//                            std::placeholders::_3));
-//
-//  this->soft_off_srv_ = this->create_service<SoftoffService>(
-//      "~/Softoff", std::bind(&ifm3d_ros2::CameraNode::Softoff, this, std::placeholders::_1, std::placeholders::_2,
-//                             std::placeholders::_3));
-//
-//  this->soft_on_srv_ = this->create_service<SoftonService>(
-//      "~/Softon", std::bind(&ifm3d_ros2::CameraNode::Softon, this, std::placeholders::_1, std::placeholders::_2,
-//                            std::placeholders::_3));
+  this->dump_srv_ =
+      this->create_service<DumpService>("~/Dump", std::bind(&ifm3d_ros2::CameraNode::Dump, this, std::placeholders::_1,
+                                                            std::placeholders::_2, std::placeholders::_3));
+
+  this->config_srv_ = this->create_service<ConfigService>(
+      "~/Config", std::bind(&ifm3d_ros2::CameraNode::Config, this, std::placeholders::_1, std::placeholders::_2,
+                            std::placeholders::_3));
+
+  this->soft_off_srv_ = this->create_service<SoftoffService>(
+      "~/Softoff", std::bind(&ifm3d_ros2::CameraNode::Softoff, this, std::placeholders::_1, std::placeholders::_2,
+                             std::placeholders::_3));
+
+  this->soft_on_srv_ = this->create_service<SoftonService>(
+      "~/Softon", std::bind(&ifm3d_ros2::CameraNode::Softon, this, std::placeholders::_1, std::placeholders::_2,
+                            std::placeholders::_3));
 
   RCLCPP_INFO(this->logger_, "node created, waiting for `configure()`...");
 }
@@ -426,8 +426,7 @@ TC_RETVAL CameraNode::on_error(const rclcpp_lifecycle::State& prev_state)
 
 void CameraNode::init_params()
 {
-  static const auto default_schema_mask{0};
-//  static const auto default_schema_mask{ ifm3d::IMG_RDIS | ifm3d::IMG_AMP | ifm3d::IMG_RAMP | ifm3d::IMG_CART };
+  static const auto default_schema_mask{ ifm3d_legacy::IMG_RDIS | ifm3d_legacy::IMG_AMP | ifm3d_legacy::IMG_RAMP | ifm3d_legacy::IMG_CART };
   static constexpr auto default_timeout_millis{ 500 };
   static constexpr auto default_timeout_tolerance_secs{ 5.0 };
   static constexpr auto default_frame_latency_threshold{ 1.0 };
@@ -592,190 +591,190 @@ void CameraNode::stop_publish_loop()
   }
 }
 
-//void CameraNode::Config(const std::shared_ptr<rmw_request_id_t> /*unused*/, ConfigRequest req, ConfigResponse resp)
-//{
-//  RCLCPP_INFO(this->logger_, "Handling config request...");
-//
-//  if (this->get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
-//  {
-//    resp->status = -1;
-//    // XXX: may want to change this logic. For now, I do it so I know
-//    // the ifm3d data structures are not null pointers
-//    RCLCPP_WARN(this->logger_, "Can only make a service request when node is ACTIVE");
-//    return;
-//  }
-//
-//  {
-//    std::lock_guard<std::mutex> lock(this->gil_);
-//    resp->status = 0;
-//    resp->msg = "OK";
-//
-//    try
-//    {
-//      this->cam_->FromJSON(json::parse(req->json));  // HERE
-//    }
-//    catch (const ifm3d::error_t& ex)
-//    {
-//      resp->status = ex.code();
-//      resp->msg = ex.what();
-//    }
-//    catch (const std::exception& std_ex)
-//    {
-//      resp->status = -1;
-//      resp->msg = std_ex.what();
-//    }
-//    catch (...)
-//    {
-//      resp->status = -2;
-//      resp->msg = "Unknown error in `Config'";
-//    }
-//
-//    if (resp->status != 0)
-//    {
-//      RCLCPP_WARN(this->logger_, "Config: %d - %s", resp->status, resp->msg.c_str());
-//    }
-//  }
-//
-//  RCLCPP_INFO(this->logger_, "Config request done.");
-//}
+void CameraNode::Config(const std::shared_ptr<rmw_request_id_t> /*unused*/, ConfigRequest req, ConfigResponse resp)
+{
+  RCLCPP_INFO(this->logger_, "Handling config request...");
 
-//void CameraNode::Dump(const std::shared_ptr<rmw_request_id_t> /*unused*/, DumpRequest /*unused*/, DumpResponse resp)
-//{
-//  RCLCPP_INFO(this->logger_, "Handling dump request...");
-//
-//  if (this->get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
-//  {
-//    resp->status = -1;
-//    // XXX: may want to change this logic. For now, I do it so I know
-//    // the ifm3d data structures are not null pointers
-//    RCLCPP_WARN(this->logger_, "Can only make a service request when node is ACTIVE");
-//    return;
-//  }
-//
-//  {
-//    std::lock_guard<std::mutex> lock(this->gil_);
-//    resp->status = 0;
-//
-//    try
-//    {
-//      json j = this->cam_->ToJSON();  // HERE
-//      resp->config = j.dump();
-//    }
-//    catch (const ifm3d::error_t& ex)
-//    {
-//      resp->status = ex.code();
-//      RCLCPP_WARN(this->logger_, "%s", ex.what());
-//    }
-//    catch (const std::exception& std_ex)
-//    {
-//      resp->status = -1;
-//      RCLCPP_WARN(this->logger_, "%s", std_ex.what());
-//    }
-//    catch (...)
-//    {
-//      resp->status = -2;
-//    }
-//
-//    if (resp->status != 0)
-//    {
-//      RCLCPP_WARN(this->logger_, "Dump: %d", resp->status);
-//    }
-//  }
-//
-//  RCLCPP_INFO(this->logger_, "Dump request done.");
-//}
+  if (this->get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+  {
+    resp->status = -1;
+    // XXX: may want to change this logic. For now, I do it so I know
+    // the ifm3d data structures are not null pointers
+    RCLCPP_WARN(this->logger_, "Can only make a service request when node is ACTIVE");
+    return;
+  }
 
-//void CameraNode::Softoff(const std::shared_ptr<rmw_request_id_t> /*unused*/, SoftoffRequest /*unused*/,
-//                         SoftoffResponse resp)
-//{
-//  RCLCPP_INFO(this->logger_, "Handling SoftOff request...");
-//
-//  if (this->get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
-//  {
-//    resp->status = -1;
-//    RCLCPP_WARN(this->logger_, "Can only make a service request when node is ACTIVE");
-//    return;
-//  }
-//
-//  {
-//    std::lock_guard<std::mutex> lock(this->gil_);
-//    resp->status = 0;
-//    int port_arg = -1;
-//
-//    try
-//    {
-//      port_arg = static_cast<int>(this->pcic_port_) % xmlrpc_base_port;
-//      this->cam_->FromJSONStr(R"({"ports":{"port)" + std::to_string(port_arg) + R"(": {"state": "IDLE"}}})");
-//    }
-//    catch (const ifm3d::error_t& ex)
-//    {
-//      resp->status = ex.code();
-//      RCLCPP_WARN(this->logger_, "%s", ex.what());
-//    }
-//    catch (const std::exception& std_ex)
-//    {
-//      resp->status = -1;
-//      RCLCPP_WARN(this->logger_, "%s", std_ex.what());
-//    }
-//    catch (...)
-//    {
-//      resp->status = -2;
-//    }
-//
-//    if (resp->status != 0)
-//    {
-//      RCLCPP_WARN(this->logger_, "SoftOff: %d", resp->status);
-//    }
-//  }
-//
-//  RCLCPP_INFO(this->logger_, "SoftOff request done.");
-//}
+  {
+    std::lock_guard<std::mutex> lock(this->gil_);
+    resp->status = 0;
+    resp->msg = "OK";
 
-//void CameraNode::Softon(const std::shared_ptr<rmw_request_id_t> /*unused*/, SoftonRequest /*unused*/,
-//                        SoftonResponse resp)
-//{
-//  RCLCPP_INFO(this->logger_, "Handling SoftOn request...");
-//
-//  if (this->get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
-//  {
-//    resp->status = -1;
-//    RCLCPP_WARN(this->logger_, "Can only make a service request when node is ACTIVE");
-//    return;
-//  }
-//
-//  {
-//    std::lock_guard<std::mutex> lock(this->gil_);
-//    resp->status = 0;
-//    int port_arg = -1;
-//
-//    try
-//    {
-//      port_arg = static_cast<int>(this->pcic_port_) % xmlrpc_base_port;
-//      this->cam_->FromJSONStr(R"({"ports":{"port)" + std::to_string(port_arg) + R"(":{"state":"RUN"}}})");
-//    }
-//    catch (const ifm3d::error_t& ex)
-//    {
-//      resp->status = ex.code();
-//      RCLCPP_WARN(this->logger_, "%s", ex.what());
-//    }
-//    catch (const std::exception& std_ex)
-//    {
-//      resp->status = -1;
-//      RCLCPP_WARN(this->logger_, "%s", std_ex.what());
-//    }
-//    catch (...)
-//    {
-//      resp->status = -2;
-//    }
-//
-//    if (resp->status != 0)
-//    {
-//      RCLCPP_WARN(this->logger_, "SoftOn: %d", resp->status);
-//    }
-//  }
-//
-//  RCLCPP_INFO(this->logger_, "SoftOn request done.");
-//}
+    try
+    {
+      this->cam_->FromJSON(json::parse(req->json));  // HERE
+    }
+    catch (const ifm3d::Error& ex)
+    {
+      resp->status = ex.code();
+      resp->msg = ex.what();
+    }
+    catch (const std::exception& std_ex)
+    {
+      resp->status = -1;
+      resp->msg = std_ex.what();
+    }
+    catch (...)
+    {
+      resp->status = -2;
+      resp->msg = "Unknown error in `Config'";
+    }
+
+    if (resp->status != 0)
+    {
+      RCLCPP_WARN(this->logger_, "Config: %d - %s", resp->status, resp->msg.c_str());
+    }
+  }
+
+  RCLCPP_INFO(this->logger_, "Config request done.");
+}
+
+void CameraNode::Dump(const std::shared_ptr<rmw_request_id_t> /*unused*/, DumpRequest /*unused*/, DumpResponse resp)
+{
+  RCLCPP_INFO(this->logger_, "Handling dump request...");
+
+  if (this->get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+  {
+    resp->status = -1;
+    // XXX: may want to change this logic. For now, I do it so I know
+    // the ifm3d data structures are not null pointers
+    RCLCPP_WARN(this->logger_, "Can only make a service request when node is ACTIVE");
+    return;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(this->gil_);
+    resp->status = 0;
+
+    try
+    {
+      json j = this->cam_->ToJSON();  // HERE
+      resp->config = j.dump();
+    }
+    catch (const ifm3d::Error& ex)
+    {
+      resp->status = ex.code();
+      RCLCPP_WARN(this->logger_, "%s", ex.what());
+    }
+    catch (const std::exception& std_ex)
+    {
+      resp->status = -1;
+      RCLCPP_WARN(this->logger_, "%s", std_ex.what());
+    }
+    catch (...)
+    {
+      resp->status = -2;
+    }
+
+    if (resp->status != 0)
+    {
+      RCLCPP_WARN(this->logger_, "Dump: %d", resp->status);
+    }
+  }
+
+  RCLCPP_INFO(this->logger_, "Dump request done.");
+}
+
+void CameraNode::Softoff(const std::shared_ptr<rmw_request_id_t> /*unused*/, SoftoffRequest /*unused*/,
+                         SoftoffResponse resp)
+{
+  RCLCPP_INFO(this->logger_, "Handling SoftOff request...");
+
+  if (this->get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+  {
+    resp->status = -1;
+    RCLCPP_WARN(this->logger_, "Can only make a service request when node is ACTIVE");
+    return;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(this->gil_);
+    resp->status = 0;
+    int port_arg = -1;
+
+    try
+    {
+      port_arg = static_cast<int>(this->pcic_port_) % xmlrpc_base_port;
+      this->cam_->FromJSONStr(R"({"ports":{"port)" + std::to_string(port_arg) + R"(": {"state": "IDLE"}}})");
+    }
+    catch (const ifm3d::Error& ex)
+    {
+      resp->status = ex.code();
+      RCLCPP_WARN(this->logger_, "%s", ex.what());
+    }
+    catch (const std::exception& std_ex)
+    {
+      resp->status = -1;
+      RCLCPP_WARN(this->logger_, "%s", std_ex.what());
+    }
+    catch (...)
+    {
+      resp->status = -2;
+    }
+
+    if (resp->status != 0)
+    {
+      RCLCPP_WARN(this->logger_, "SoftOff: %d", resp->status);
+    }
+  }
+
+  RCLCPP_INFO(this->logger_, "SoftOff request done.");
+}
+
+void CameraNode::Softon(const std::shared_ptr<rmw_request_id_t> /*unused*/, SoftonRequest /*unused*/,
+                        SoftonResponse resp)
+{
+  RCLCPP_INFO(this->logger_, "Handling SoftOn request...");
+
+  if (this->get_current_state().id() != lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE)
+  {
+    resp->status = -1;
+    RCLCPP_WARN(this->logger_, "Can only make a service request when node is ACTIVE");
+    return;
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(this->gil_);
+    resp->status = 0;
+    int port_arg = -1;
+
+    try
+    {
+      port_arg = static_cast<int>(this->pcic_port_) % xmlrpc_base_port;
+      this->cam_->FromJSONStr(R"({"ports":{"port)" + std::to_string(port_arg) + R"(":{"state":"RUN"}}})");
+    }
+    catch (const ifm3d::Error& ex)
+    {
+      resp->status = ex.code();
+      RCLCPP_WARN(this->logger_, "%s", ex.what());
+    }
+    catch (const std::exception& std_ex)
+    {
+      resp->status = -1;
+      RCLCPP_WARN(this->logger_, "%s", std_ex.what());
+    }
+    catch (...)
+    {
+      resp->status = -2;
+    }
+
+    if (resp->status != 0)
+    {
+      RCLCPP_WARN(this->logger_, "SoftOn: %d", resp->status);
+    }
+  }
+
+  RCLCPP_INFO(this->logger_, "SoftOn request done.");
+}
 
 //
 // Runs as a separate thread of execution, kicked off in `on_activate()`.
@@ -783,7 +782,9 @@ void CameraNode::stop_publish_loop()
 void CameraNode::publish_loop()
 {
   rclcpp::Clock ros_clock(RCL_SYSTEM_TIME);
-  fg_->Start({ifm3d::buffer_id::JPEG_IMAGE, ifm3d::buffer_id::AMPLITUDE_IMAGE, ifm3d::buffer_id::RADIAL_DISTANCE_IMAGE,ifm3d::buffer_id::XYZ});
+
+  auto buffer_list = ifm3d_legacy::buffer_list_from_schema_mask(schema_mask_);
+  fg_->Start(buffer_list);
 
   auto head = std_msgs::msg::Header();
   head.frame_id = this->camera_frame_;
@@ -864,7 +865,6 @@ void CameraNode::publish_loop()
       auto conf = frame->GetBuffer(ifm3d::buffer_id::CONFIDENCE_IMAGE);
       this->conf_pub_->publish(ifm3d_to_ros_image(conf, optical_head, logger_));
     }
-    //TODO: check which of the following two is the raw ampl image
     if (frame->HasBuffer(ifm3d::buffer_id::NORM_AMPLITUDE_IMAGE))
     {
       auto amp = frame->GetBuffer(ifm3d::buffer_id::NORM_AMPLITUDE_IMAGE);

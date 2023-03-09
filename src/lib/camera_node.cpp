@@ -825,20 +825,20 @@ void CameraNode::publish_loop()
 
     auto now = ros_clock.now();
 
-//    auto frame_time = rclcpp::Time(
-//        std::chrono::duration_cast<std::chrono::nanoseconds>(this->im_->TimeStamp().time_since_epoch()).count(),
-//        RCL_SYSTEM_TIME);
-//
-//    if (std::fabs((frame_time - now).nanoseconds() / static_cast<float>(std::nano::den)) > this->frame_latency_thresh_)
-//    {
-//      RCLCPP_WARN_ONCE(this->logger_, "Frame latency thresh exceeded, using reception timestamps!");
-//      head.stamp = now;
-//    }
-//    else
-//    {
-//      head.stamp = frame_time;
-//    }
-    head.stamp = now;   //TODO: Handle Timestamp
+    auto frame_time = rclcpp::Time(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(frame->TimeStamps()[0].time_since_epoch()).count(),
+        RCL_SYSTEM_TIME);
+
+    if (std::fabs((frame_time - now).nanoseconds() / static_cast<float>(std::nano::den)) > this->frame_latency_thresh_)
+    {
+      RCLCPP_WARN_ONCE(this->logger_, "Frame latency thresh exceeded, using reception timestamps!");
+      head.stamp = now;
+    }
+    else
+    {
+      head.stamp = frame_time;
+    }
+
     optical_head.stamp = head.stamp;
     last_frame_time = head.stamp;
 
@@ -882,9 +882,11 @@ void CameraNode::publish_loop()
       this->cloud_pub_->publish(ifm3d_to_ros_cloud(xyz, optical_head, logger_));
     }
 
-    //
-    // publish extrinsics
-    //
+// TODO: Handle extrinsics
+
+//    //
+//    // publish extrinsics
+//    //
 //    ifm3d_ros2::msg::Extrinsics extrinsics_msg;
 //    extrinsics_msg.header = optical_head;
 //    try

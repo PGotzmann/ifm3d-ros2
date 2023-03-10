@@ -799,111 +799,119 @@ void CameraNode::publish_loop()
   RCLCPP_INFO(this->logger_, "Starting publishing loop...");
   while (rclcpp::ok() && (!this->test_destroy_))
   {
-    std::lock_guard<std::mutex> lock(this->gil_);
-
-
-    auto future = fg_->WaitForFrame();
-    if (future.wait_for(std::chrono::duration<int, std::milli>(this->timeout_millis_)) != std::future_status::ready)
+    try
     {
-      // XXX: May not want to emit this if the camera is software
-      //      triggered.
-      RCLCPP_WARN(this->logger_, "Timeout waiting for camera!");
+      std::lock_guard<std::mutex> lock(this->gil_);
 
-      if (std::fabs((rclcpp::Time(last_frame_time, RCL_SYSTEM_TIME) - ros_clock.now()).nanoseconds() /
-                    static_cast<float>(std::nano::den)) > this->timeout_tolerance_secs_)
+      auto future = fg_->WaitForFrame();
+      if (future.wait_for(std::chrono::duration<int, std::milli>(this->timeout_millis_)) != std::future_status::ready)
       {
-        RCLCPP_WARN(this->logger_, "Timeouts exceeded tolerance threshold!");
+        // XXX: May not want to emit this if the camera is software
+        //      triggered.
+        RCLCPP_WARN(this->logger_, "Timeout waiting for camera!");
 
-        std::thread deactivate_t([this]() { this->deactivate(); });
-        deactivate_t.detach();
-        break;
+        if (std::fabs((rclcpp::Time(last_frame_time, RCL_SYSTEM_TIME) - ros_clock.now()).nanoseconds() /
+                      static_cast<float>(std::nano::den)) > this->timeout_tolerance_secs_)
+        {
+          RCLCPP_WARN(this->logger_, "Timeouts exceeded tolerance threshold!");
+
+          std::thread deactivate_t([this]() { this->deactivate(); });
+          deactivate_t.detach();
+          break;
+        }
+
+        continue;
+      }
+      auto frame = future.get();
+
+      auto now = ros_clock.now();
+
+      auto frame_time = rclcpp::Time(
+          std::chrono::duration_cast<std::chrono::nanoseconds>(frame->TimeStamps()[0].time_since_epoch()).count(),
+          RCL_SYSTEM_TIME);
+
+      if (std::fabs((frame_time - now).nanoseconds() / static_cast<float>(std::nano::den)) >
+          this->frame_latency_thresh_)
+      {
+        RCLCPP_WARN_ONCE(this->logger_, "Frame latency thresh exceeded, using reception timestamps!");
+        head.stamp = now;
+      }
+      else
+      {
+        head.stamp = frame_time;
       }
 
-      continue;
-    }
-    auto frame = future.get();
+      optical_head.stamp = head.stamp;
+      last_frame_time = head.stamp;
 
-    auto now = ros_clock.now();
+      //
+      // Publish the data
+      //
 
-    auto frame_time = rclcpp::Time(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(frame->TimeStamps()[0].time_since_epoch()).count(),
-        RCL_SYSTEM_TIME);
-
-    if (std::fabs((frame_time - now).nanoseconds() / static_cast<float>(std::nano::den)) > this->frame_latency_thresh_)
-    {
-      RCLCPP_WARN_ONCE(this->logger_, "Frame latency thresh exceeded, using reception timestamps!");
-      head.stamp = now;
-    }
-    else
-    {
-      head.stamp = frame_time;
-    }
-
-    optical_head.stamp = head.stamp;
-    last_frame_time = head.stamp;
-
-
-    //
-    // Publish the data
-    //
-
-    if (frame->HasBuffer(ifm3d::buffer_id::JPEG_IMAGE))
-    {
-      auto rgb = frame->GetBuffer(ifm3d::buffer_id::JPEG_IMAGE);
-      if (rgb.width() * rgb.height() != 0)
+      if (frame->HasBuffer(ifm3d::buffer_id::JPEG_IMAGE))
       {
-        this->rgb_pub_->publish(ifm3d_to_ros_compressed_image(rgb, optical_head, "jpeg", logger_));
+        auto rgb = frame->GetBuffer(ifm3d::buffer_id::JPEG_IMAGE);
+        if (rgb.width() * rgb.height() != 0)
+        {
+          this->rgb_pub_->publish(ifm3d_to_ros_compressed_image(rgb, optical_head, "jpeg", logger_));
+        }
       }
-    }
-    if (frame->HasBuffer(ifm3d::buffer_id::RADIAL_DISTANCE_IMAGE))
-    {
-      auto dist = frame->GetBuffer(ifm3d::buffer_id::RADIAL_DISTANCE_IMAGE);
-      this->distance_pub_->publish(ifm3d_to_ros_image(dist, optical_head, logger_));
-    }
-    if (frame->HasBuffer(ifm3d::buffer_id::CONFIDENCE_IMAGE))
-    {
-      auto conf = frame->GetBuffer(ifm3d::buffer_id::CONFIDENCE_IMAGE);
-      this->conf_pub_->publish(ifm3d_to_ros_image(conf, optical_head, logger_));
-    }
-    if (frame->HasBuffer(ifm3d::buffer_id::NORM_AMPLITUDE_IMAGE))
-    {
-      auto amp = frame->GetBuffer(ifm3d::buffer_id::NORM_AMPLITUDE_IMAGE);
-      this->amplitude_pub_->publish(ifm3d_to_ros_image(amp, optical_head, logger_));
-    }
-    if (frame->HasBuffer(ifm3d::buffer_id::AMPLITUDE_IMAGE))
-    {
-      auto raw_amp = frame->GetBuffer(ifm3d::buffer_id::AMPLITUDE_IMAGE);
-      this->raw_amplitude_pub_->publish(ifm3d_to_ros_image(raw_amp, optical_head, logger_));
+      if (frame->HasBuffer(ifm3d::buffer_id::RADIAL_DISTANCE_IMAGE))
+      {
+        auto dist = frame->GetBuffer(ifm3d::buffer_id::RADIAL_DISTANCE_IMAGE);
+        this->distance_pub_->publish(ifm3d_to_ros_image(dist, optical_head, logger_));
+      }
+      if (frame->HasBuffer(ifm3d::buffer_id::CONFIDENCE_IMAGE))
+      {
+        auto conf = frame->GetBuffer(ifm3d::buffer_id::CONFIDENCE_IMAGE);
+        this->conf_pub_->publish(ifm3d_to_ros_image(conf, optical_head, logger_));
+      }
+      if (frame->HasBuffer(ifm3d::buffer_id::NORM_AMPLITUDE_IMAGE))
+      {
+        auto amp = frame->GetBuffer(ifm3d::buffer_id::NORM_AMPLITUDE_IMAGE);
+        this->amplitude_pub_->publish(ifm3d_to_ros_image(amp, optical_head, logger_));
+      }
+      if (frame->HasBuffer(ifm3d::buffer_id::AMPLITUDE_IMAGE))
+      {
+        auto raw_amp = frame->GetBuffer(ifm3d::buffer_id::AMPLITUDE_IMAGE);
+        this->raw_amplitude_pub_->publish(ifm3d_to_ros_image(raw_amp, optical_head, logger_));
+      }
+      if (frame->HasBuffer(ifm3d::buffer_id::XYZ))
+      {
+        auto xyz = frame->GetBuffer(ifm3d::buffer_id::XYZ);
+        this->cloud_pub_->publish(ifm3d_to_ros_cloud(xyz, optical_head, logger_));
+      }
 
-    }
-    if (frame->HasBuffer(ifm3d::buffer_id::XYZ))
-    {
-      auto xyz = frame->GetBuffer(ifm3d::buffer_id::XYZ);
-      this->cloud_pub_->publish(ifm3d_to_ros_cloud(xyz, optical_head, logger_));
-    }
+      // TODO: Handle extrinsics
 
-// TODO: Handle extrinsics
+      //    //
+      //    // publish extrinsics
+      //    //
+      //    ifm3d_ros2::msg::Extrinsics extrinsics_msg;
+      //    extrinsics_msg.header = optical_head;
+      //    try
+      //    {
+      //      const auto extrinsics = this->im_->Extrinsics();
+      //      extrinsics_msg.tx = extrinsics.at(0);
+      //      extrinsics_msg.ty = extrinsics.at(1);
+      //      extrinsics_msg.tz = extrinsics.at(2);
+      //      extrinsics_msg.rot_x = extrinsics.at(3);
+      //      extrinsics_msg.rot_y = extrinsics.at(4);
+      //      extrinsics_msg.rot_z = extrinsics.at(5);
+      //    }
+      //    catch (const std::out_of_range& ex)
+      //    {
+      //      RCLCPP_WARN(this->logger_, "Out-of-range error fetching extrinsics");
+      //    }
+      //    this->extrinsics_pub_->publish(extrinsics_msg);
+    } // end: try
+    catch(const std::exception& ex){
+      RCLCPP_ERROR(this->logger_, "Exception in publisher loop: %s", ex.what());
 
-//    //
-//    // publish extrinsics
-//    //
-//    ifm3d_ros2::msg::Extrinsics extrinsics_msg;
-//    extrinsics_msg.header = optical_head;
-//    try
-//    {
-//      const auto extrinsics = this->im_->Extrinsics();
-//      extrinsics_msg.tx = extrinsics.at(0);
-//      extrinsics_msg.ty = extrinsics.at(1);
-//      extrinsics_msg.tz = extrinsics.at(2);
-//      extrinsics_msg.rot_x = extrinsics.at(3);
-//      extrinsics_msg.rot_y = extrinsics.at(4);
-//      extrinsics_msg.rot_z = extrinsics.at(5);
-//    }
-//    catch (const std::out_of_range& ex)
-//    {
-//      RCLCPP_WARN(this->logger_, "Out-of-range error fetching extrinsics");
-//    }
-//    this->extrinsics_pub_->publish(extrinsics_msg);
+      std::thread deactivate_t([this]() { this->deactivate(); });
+      deactivate_t.detach();
+      break;
+    }
 
   }  // end: while (rclcpp::ok() && (! this->test_destroy_))
 
